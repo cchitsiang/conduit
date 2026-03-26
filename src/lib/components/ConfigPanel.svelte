@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ProviderConfig } from "$lib/types";
-  import { vpnGetConfig, vpnSetConfig, listWireguardConfigs, importWireguardConfig, type WgConfigInfo } from "$lib/tauri";
+  import { vpnGetConfig, vpnSetConfig, listWireguardConfigs, importWireguardConfig, listPritunlProfiles, type WgConfigInfo, type PritunlProfileInfo } from "$lib/tauri";
   import { open } from "@tauri-apps/plugin-dialog";
 
   let {
@@ -14,6 +14,7 @@
   let expanded = $state(false);
   let localConfig = $state<ProviderConfig | null>(null);
   let wgConfigs = $state<WgConfigInfo[]>([]);
+  let pritunlProfiles = $state<PritunlProfileInfo[]>([]);
 
   $effect(() => {
     localConfig = config;
@@ -24,6 +25,9 @@
       localConfig = await vpnGetConfig(provider);
       if (provider === "WireGuard") {
         wgConfigs = await listWireguardConfigs();
+      }
+      if (provider === "Pritunl") {
+        pritunlProfiles = await listPritunlProfiles();
       }
     } catch (e) {
       console.error("Failed to load config:", e);
@@ -65,7 +69,7 @@
           <span class="text-gray-600 dark:text-gray-300">Exit Node</span>
           <input
             type="text"
-            class="w-40 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-sm"
+            class="w-40 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm"
             value={localConfig.exit_node ?? ""}
             onchange={(e) => {
               if (localConfig?.type === "Tailscale") {
@@ -141,7 +145,7 @@
         <label class="flex items-center justify-between">
           <span class="text-gray-600 dark:text-gray-300">Profile</span>
           <select
-            class="w-40 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-sm"
+            class="w-40 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm"
             value={localConfig.interface}
             onchange={async (e) => {
               if (localConfig?.type === "WireGuard") {
@@ -190,6 +194,42 @@
             {localConfig.config_file}
           </span>
         </div>
+      {:else if localConfig.type === "Pritunl"}
+        <label class="flex items-center justify-between">
+          <span class="text-gray-600 dark:text-gray-300">Profile</span>
+          <select
+            class="w-40 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm"
+            value={localConfig.profile_id}
+            onchange={(e) => {
+              if (localConfig?.type === "Pritunl") {
+                const selected = (e.target as HTMLSelectElement).value;
+                localConfig.profile_id = selected;
+                localConfig.password = null;
+                saveConfig();
+              }
+            }}
+          >
+            {#each pritunlProfiles as profile}
+              <option value={profile.id}>{profile.name}</option>
+            {/each}
+            {#if localConfig.profile_id && !pritunlProfiles.find((p) => p.id === localConfig.profile_id)}
+              <option value={localConfig.profile_id}>{localConfig.profile_id}</option>
+            {/if}
+          </select>
+        </label>
+        {@const selectedProfile = pritunlProfiles.find((p) => p.id === localConfig.profile_id)}
+        {#if selectedProfile?.user}
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600 dark:text-gray-300">User</span>
+            <span class="text-xs text-gray-500 truncate max-w-[200px]">{selectedProfile.user}</span>
+          </div>
+        {/if}
+        {#if selectedProfile?.password_mode}
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600 dark:text-gray-300">Auth</span>
+            <span class="text-xs text-gray-500 capitalize">{selectedProfile.password_mode}</span>
+          </div>
+        {/if}
       {/if}
     </div>
   {/if}

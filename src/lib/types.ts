@@ -23,6 +23,11 @@ export type ProviderConfig =
       type: "WireGuard";
       config_file: string;
       interface: string;
+    }
+  | {
+      type: "Pritunl";
+      profile_id: string;
+      password: string | null;
     };
 
 export type WarpMode = "Warp" | "DnsOnly" | "Proxy";

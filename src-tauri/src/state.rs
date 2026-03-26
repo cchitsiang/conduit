@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::provider::pritunl::PritunlProvider;
 use crate::provider::tailscale::TailscaleProvider;
 use crate::provider::warp::WarpProvider;
 use crate::provider::wireguard::WireGuardProvider;
@@ -23,10 +24,16 @@ impl AppState {
             None => WireGuardProvider::new(),
         };
 
+        let pritunl_provider = match &settings.pritunl_last_profile {
+            Some(id) => PritunlProvider::with_profile(id),
+            None => PritunlProvider::new(),
+        };
+
         let providers: Vec<Arc<Mutex<Box<dyn VpnProvider>>>> = vec![
             Arc::new(Mutex::new(Box::new(TailscaleProvider::new()))),
             Arc::new(Mutex::new(Box::new(WarpProvider::new()))),
             Arc::new(Mutex::new(Box::new(wg_provider))),
+            Arc::new(Mutex::new(Box::new(pritunl_provider))),
         ];
 
         Self {

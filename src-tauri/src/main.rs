@@ -32,6 +32,7 @@ fn main() {
             conduit_lib::commands::list_wireguard_configs,
             conduit_lib::commands::get_wireguard_config_dir,
             conduit_lib::commands::import_wireguard_config,
+            conduit_lib::commands::list_pritunl_profiles,
         ])
         .setup(move |app| {
             // Create system tray

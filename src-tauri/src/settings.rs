@@ -9,6 +9,8 @@ pub struct AppSettings {
     pub provider_visibility: HashMap<String, bool>,
     #[serde(default)]
     pub wireguard_last_interface: Option<String>,
+    #[serde(default)]
+    pub pritunl_last_profile: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -17,12 +19,14 @@ impl Default for AppSettings {
         visibility.insert("Tailscale".to_string(), true);
         visibility.insert("WARP".to_string(), true);
         visibility.insert("WireGuard".to_string(), true);
+        visibility.insert("Pritunl".to_string(), true);
 
         Self {
             poll_interval_secs: 3,
             launch_at_login: false,
             provider_visibility: visibility,
             wireguard_last_interface: None,
+            pritunl_last_profile: None,
         }
     }
 }

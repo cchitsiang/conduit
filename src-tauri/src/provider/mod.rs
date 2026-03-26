@@ -1,3 +1,4 @@
+pub mod pritunl;
 pub mod tailscale;
 pub mod warp;
 pub mod wireguard;
@@ -36,6 +37,10 @@ pub enum ProviderConfig {
     WireGuard {
         config_file: PathBuf,
         interface: String,
+    },
+    Pritunl {
+        profile_id: String,
+        password: Option<String>,
     },
 }
 

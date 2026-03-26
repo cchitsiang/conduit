@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
 
+use crate::provider::pritunl::{self, PritunlProvider, PritunlProfile};
 use crate::provider::wireguard::WireGuardProvider;
 use crate::provider::{ConnectOptions, ProviderConfig, ProviderInfo, VpnStatus};
 use crate::settings::AppSettings;
@@ -109,11 +110,20 @@ pub async fn vpn_set_config(
         if let Some(wg) = p.as_any_mut().downcast_mut::<WireGuardProvider>() {
             wg.interface = interface.clone();
         }
-        // Save last used interface to settings
-        {
-            let mut settings = state.settings.lock().await;
-            settings.wireguard_last_interface = Some(interface.clone());
+        let mut settings = state.settings.lock().await;
+        settings.wireguard_last_interface = Some(interface.clone());
+        drop(settings);
+        let _ = state.save_settings().await;
+    }
+
+    // For Pritunl, update the active profile and persist the choice
+    if let ProviderConfig::Pritunl { ref profile_id, .. } = config {
+        if let Some(pr) = p.as_any_mut().downcast_mut::<PritunlProvider>() {
+            pr.profile_id = profile_id.clone();
         }
+        let mut settings = state.settings.lock().await;
+        settings.pritunl_last_profile = Some(profile_id.clone());
+        drop(settings);
         let _ = state.save_settings().await;
     }
 
@@ -172,6 +182,11 @@ pub async fn import_wireguard_config(path: String) -> Result<WgConfigInfo, Strin
         name,
         path: dest.to_string_lossy().to_string(),
     })
+}
+
+#[tauri::command]
+pub async fn list_pritunl_profiles() -> Result<Vec<PritunlProfile>, String> {
+    Ok(pritunl::list_profiles())
 }
 
 #[tauri::command]

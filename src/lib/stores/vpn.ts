@@ -65,19 +65,27 @@ export async function initialize() {
   }
 }
 
-export async function connect(provider: string) {
+export async function connect(provider: string, opts?: import("$lib/types").ConnectOptions) {
   isLoading.update((l) => ({ ...l, [provider]: true }));
   try {
-    await vpnConnect(provider);
-    // Check actual status after connect command returns
-    const fresh = await vpnStatusAll();
-    statuses.set(fresh);
-    const actual = fresh.find((s) => s.provider === provider);
-    if (actual?.connected) {
-      addLogEntry(provider, "connected", true);
-    } else {
-      addLogEntry(provider, "connecting", true, "command sent, waiting for connection");
+    await vpnConnect(provider, opts);
+    addLogEntry(provider, "connecting", true, "command sent, waiting for connection");
+
+    // Poll until connected or timeout (30s)
+    const maxWait = 30_000;
+    const pollInterval = 1_500;
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      await new Promise((r) => setTimeout(r, pollInterval));
+      const fresh = await vpnStatusAll();
+      statuses.set(fresh);
+      const actual = fresh.find((s) => s.provider === provider);
+      if (actual?.connected) {
+        addLogEntry(provider, "connected", true);
+        return;
+      }
     }
+    addLogEntry(provider, "connecting", true, "still waiting for connection");
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     addLogEntry(provider, "connect", false, msg);
@@ -90,14 +98,23 @@ export async function disconnect(provider: string) {
   isLoading.update((l) => ({ ...l, [provider]: true }));
   try {
     await vpnDisconnect(provider);
-    const fresh = await vpnStatusAll();
-    statuses.set(fresh);
-    const actual = fresh.find((s) => s.provider === provider);
-    if (!actual?.connected) {
-      addLogEntry(provider, "disconnected", true);
-    } else {
-      addLogEntry(provider, "disconnecting", true, "command sent, waiting for disconnection");
+    addLogEntry(provider, "disconnecting", true, "command sent, waiting for disconnection");
+
+    // Poll until disconnected or timeout (15s)
+    const maxWait = 15_000;
+    const pollInterval = 1_000;
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      await new Promise((r) => setTimeout(r, pollInterval));
+      const fresh = await vpnStatusAll();
+      statuses.set(fresh);
+      const actual = fresh.find((s) => s.provider === provider);
+      if (!actual?.connected) {
+        addLogEntry(provider, "disconnected", true);
+        return;
+      }
     }
+    addLogEntry(provider, "disconnecting", true, "still waiting for disconnection");
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     addLogEntry(provider, "disconnect", false, msg);

@@ -17,16 +17,50 @@
 
   let loading = $derived($isLoading[name] ?? false);
   let connected = $derived(status?.connected ?? false);
+  let pendingAction = $state<"connect" | "disconnect" | null>(null);
   let dotStatus = $derived<"connected" | "disconnected" | "connecting" | "error">(
     loading ? "connecting" : connected ? "connected" : "disconnected",
   );
 
+  let showOtpPrompt = $state(false);
+  let otpValue = $state("");
+
+  // Check if current Pritunl profile needs OTP/password
+  let needsOtp = $derived(
+    name === "Pritunl" && !!status?.extra?.["password_mode"],
+  );
+
+  // Clear pendingAction when loading finishes
+  $effect(() => {
+    if (!loading) pendingAction = null;
+  });
+
   function handleToggle(checked: boolean) {
     if (checked) {
+      pendingAction = "connect";
+      if (name === "Pritunl" && needsOtp) {
+        showOtpPrompt = true;
+        otpValue = "";
+        return;
+      }
       connect(name);
     } else {
+      pendingAction = "disconnect";
       disconnect(name);
     }
+  }
+
+  function submitOtp() {
+    showOtpPrompt = false;
+    pendingAction = "connect";
+    connect(name, {
+      provider_config: {
+        type: "Pritunl",
+        profile_id: status?.extra?.["profile"] ?? "",
+        password: otpValue,
+      },
+    });
+    otpValue = "";
   }
 
   function formatUptime(since: string | null): string {
@@ -82,7 +116,15 @@
       <div class="flex justify-between">
         <span>Status</span>
         <span class={connected ? "text-green-600 dark:text-green-400" : ""}>
-          {loading ? "Connecting..." : connected ? "Connected" : "Disconnected"}
+          {#if loading && pendingAction === "disconnect"}
+            Disconnecting...
+          {:else if loading}
+            Connecting...
+          {:else if connected}
+            Connected
+          {:else}
+            Disconnected
+          {/if}
         </span>
       </div>
 
@@ -109,6 +151,48 @@
         {/each}
       {/if}
     </div>
+
+    {#if showOtpPrompt}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        onkeydown={(e) => { if (e.key === "Escape") showOtpPrompt = false; }}
+        onclick={(e) => { if (e.target === e.currentTarget) showOtpPrompt = false; }}
+      >
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-80">
+          <h3 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-1">
+            {status?.extra?.["password_mode"] === "pin" ? "Enter PIN" : "Enter OTP Code"}
+          </h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            {status?.extra?.["server"] ?? "Pritunl"} requires authentication
+          </p>
+          <form onsubmit={(e) => { e.preventDefault(); submitOtp(); }}>
+            <input
+              type="text"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white text-center tracking-widest text-lg font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="000000"
+              bind:value={otpValue}
+              autofocus
+            />
+            <div class="flex gap-2 mt-4">
+              <button
+                type="submit"
+                class="flex-1 py-2 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
+              >
+                Connect
+              </button>
+              <button
+                type="button"
+                class="flex-1 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onclick={() => (showOtpPrompt = false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {/if}
 
     <ConfigPanel provider={name} config={null} />
   {/if}

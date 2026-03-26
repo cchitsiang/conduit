@@ -59,6 +59,19 @@ export async function listWireguardConfigs(): Promise<WgConfigInfo[]> {
   return invoke("list_wireguard_configs");
 }
 
+export interface PritunlProfileInfo {
+  id: string;
+  name: string;
+  server: string;
+  organization: string;
+  user: string;
+  password_mode: string | null;
+}
+
+export async function listPritunlProfiles(): Promise<PritunlProfileInfo[]> {
+  return invoke("list_pritunl_profiles");
+}
+
 export async function importWireguardConfig(
   path: string,
 ): Promise<WgConfigInfo> {

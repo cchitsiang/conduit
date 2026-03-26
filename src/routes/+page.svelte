@@ -8,6 +8,7 @@
     initialize,
     visibleStatuses,
     providers,
+    settings,
   } from "$lib/stores/vpn";
 
   let loaded = $state(false);
@@ -57,7 +58,7 @@
     </div>
   {:else}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      {#each $providers as provider}
+      {#each $providers.filter((p) => $settings.provider_visibility[p.name] !== false) as provider}
         {@const status =
           $visibleStatuses.find((s) => s.provider === provider.name) ?? null}
         <VpnCard name={provider.name} {status} installed={provider.installed} />
