@@ -2,7 +2,7 @@
 
 Unified macOS menu bar app to manage **Tailscale**, **Cloudflare WARP**, and **WireGuard** VPN connections from a single interface.
 
-![Conduit Dashboard](assets/screenshot-dashboard.png)
+![Conduit Dashboard](assets/screenshot.png)
 
 ## Features
 
