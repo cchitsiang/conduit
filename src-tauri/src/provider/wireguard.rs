@@ -126,6 +126,17 @@ impl WireGuardProvider {
         configs
     }
 
+    /// Find the config file path for a given interface name
+    fn find_config_path(interface: &str) -> Option<PathBuf> {
+        Self::list_config_files()
+            .into_iter()
+            .find(|p| {
+                p.file_stem()
+                    .map(|s| s.to_string_lossy() == interface)
+                    .unwrap_or(false)
+            })
+    }
+
     /// Returns the user-writable config directory, creating it if needed
     pub fn ensure_user_config_dir() -> Result<PathBuf, String> {
         let dir = user_config_dir();
@@ -170,7 +181,10 @@ impl VpnProvider for WireGuardProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
-        let cmd = format!("wg-quick up {}", self.interface);
+        let config_path = Self::find_config_path(&self.interface)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| self.interface.clone());
+        let cmd = format!("wg-quick up {}", config_path);
         Self::exec_with_sudo(&cmd).await?;
         Ok(())
     }
@@ -179,7 +193,10 @@ impl VpnProvider for WireGuardProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
-        let cmd = format!("wg-quick down {}", self.interface);
+        let config_path = Self::find_config_path(&self.interface)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| self.interface.clone());
+        let cmd = format!("wg-quick down {}", config_path);
         Self::exec_with_sudo(&cmd).await?;
         Ok(())
     }
