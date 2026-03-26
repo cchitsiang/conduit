@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { check, type Update } from "@tauri-apps/plugin-updater";
+  import { relaunch } from "@tauri-apps/plugin-process";
 
   let update = $state<Update | null>(null);
   let updating = $state(false);
@@ -32,7 +33,8 @@
           progress = "Restarting...";
         }
       });
-      // downloadAndInstall restarts the app automatically on macOS
+      progress = "Restarting...";
+      await relaunch();
     } catch (e) {
       console.error("Update failed:", e);
       progress = "Update failed";
