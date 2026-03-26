@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::Arc;
+use tauri::Emitter;
 use tokio::sync::Mutex;
 
 fn main() {
@@ -14,7 +15,7 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(app_state)
+        .manage(app_state.clone())
         .invoke_handler(tauri::generate_handler![
             conduit_lib::commands::vpn_connect,
             conduit_lib::commands::vpn_disconnect,
@@ -26,6 +27,45 @@ fn main() {
             conduit_lib::commands::get_settings,
             conduit_lib::commands::update_settings,
         ])
+        .setup(move |app| {
+            // Create system tray
+            conduit_lib::tray::create_tray(app.handle())?;
+
+            // Spawn polling loop
+            let app_handle = app.handle().clone();
+            let poll_state = app_state.clone();
+
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    let interval = {
+                        let state = poll_state.lock().await;
+                        let settings = state.settings.lock().await;
+                        settings.poll_interval_secs
+                    };
+
+                    tokio::time::sleep(tokio::time::Duration::from_secs(interval)).await;
+
+                    let state = poll_state.lock().await;
+                    let results = state.status_all().await;
+                    let statuses: Vec<_> = results.into_iter().filter_map(|r| r.ok()).collect();
+
+                    // Emit status update to frontend
+                    let _ = app_handle.emit("vpn-status-changed", &statuses);
+
+                    // Update tray menu
+                    let _ = conduit_lib::tray::update_tray_menu(&app_handle, &statuses);
+                }
+            });
+
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Hide instead of close — keep app in menu bar
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
