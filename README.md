@@ -2,6 +2,8 @@
 
 Unified macOS menu bar app to manage **Tailscale**, **Cloudflare WARP**, and **WireGuard** VPN connections from a single interface.
 
+![Conduit Dashboard](assets/screenshot-dashboard.png)
+
 ## Features
 
 - **Menu bar tray** — quick status overview and toggles without opening a window
@@ -50,6 +52,18 @@ npm run tauri dev
 # Build for production
 npm run tauri build
 ```
+
+## Installation from DMG
+
+Download the latest `.dmg` from [Releases](https://github.com/cchitsiang/conduit/releases), open it, and drag Conduit to Applications.
+
+Since the app is not code-signed, macOS will quarantine it. Run this after installing:
+
+```bash
+xattr -cr /Applications/conduit.app
+```
+
+Then open Conduit from Applications or Spotlight.
 
 ## WireGuard Profiles
 
