@@ -60,7 +60,7 @@ Download the latest `.dmg` from [Releases](https://github.com/cchitsiang/conduit
 Since the app is not code-signed, macOS will quarantine it. Run this after installing:
 
 ```bash
-xattr -cr /Applications/conduit.app
+find /Applications/conduit.app -exec xattr -c {} \;
 ```
 
 Then open Conduit from Applications or Spotlight.
