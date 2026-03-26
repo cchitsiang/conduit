@@ -69,9 +69,15 @@ export async function connect(provider: string) {
   isLoading.update((l) => ({ ...l, [provider]: true }));
   try {
     await vpnConnect(provider);
-    addLogEntry(provider, "connected", true);
+    // Check actual status after connect command returns
     const fresh = await vpnStatusAll();
     statuses.set(fresh);
+    const actual = fresh.find((s) => s.provider === provider);
+    if (actual?.connected) {
+      addLogEntry(provider, "connected", true);
+    } else {
+      addLogEntry(provider, "connecting", true, "command sent, waiting for connection");
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     addLogEntry(provider, "connect", false, msg);
@@ -84,9 +90,14 @@ export async function disconnect(provider: string) {
   isLoading.update((l) => ({ ...l, [provider]: true }));
   try {
     await vpnDisconnect(provider);
-    addLogEntry(provider, "disconnected", true);
     const fresh = await vpnStatusAll();
     statuses.set(fresh);
+    const actual = fresh.find((s) => s.provider === provider);
+    if (!actual?.connected) {
+      addLogEntry(provider, "disconnected", true);
+    } else {
+      addLogEntry(provider, "disconnecting", true, "command sent, waiting for disconnection");
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     addLogEntry(provider, "disconnect", false, msg);
