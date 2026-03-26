@@ -57,7 +57,7 @@
       {#each $providers as provider}
         {@const status =
           $visibleStatuses.find((s) => s.provider === provider.name) ?? null}
-        <VpnCard {status} installed={provider.installed} />
+        <VpnCard name={provider.name} {status} installed={provider.installed} />
       {/each}
     </div>
 

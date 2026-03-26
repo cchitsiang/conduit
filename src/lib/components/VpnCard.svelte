@@ -6,9 +6,11 @@
   import { connect, disconnect, isLoading } from "$lib/stores/vpn";
 
   let {
+    name,
     status,
     installed = true,
   }: {
+    name: string;
     status: VpnStatus | null;
     installed?: boolean;
   } = $props();
@@ -51,7 +53,7 @@
   {#if !installed}
     <div class="text-center py-4">
       <p class="text-lg font-medium text-gray-400">
-        {status?.provider ?? "Unknown"}
+        {name}
       </p>
       <p class="text-sm text-gray-400 mt-1">Not detected</p>
     </div>
