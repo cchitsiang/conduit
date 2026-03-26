@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import VpnCard from "$lib/components/VpnCard.svelte";
+  import UpdateBanner from "$lib/components/UpdateBanner.svelte";
   import ActivityLog from "$lib/components/ActivityLog.svelte";
   import SettingsPanel from "$lib/components/SettingsPanel.svelte";
   import {
@@ -47,6 +48,8 @@
       </svg>
     </button>
   </header>
+
+  <UpdateBanner />
 
   {#if !loaded}
     <div class="flex items-center justify-center h-64">
