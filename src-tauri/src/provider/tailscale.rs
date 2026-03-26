@@ -9,13 +9,23 @@ use crate::util::detect::is_tool_installed;
 use crate::util::exec::exec_command;
 
 const TOOL_NAME: &str = "tailscale";
+const MAC_APP_CLI: &str = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
 const TIMEOUT: u64 = 10;
 
-pub struct TailscaleProvider;
+pub struct TailscaleProvider {
+    cli_path: String,
+}
 
 impl TailscaleProvider {
     pub fn new() -> Self {
-        Self
+        // Prefer the Mac App's bundled CLI (talks to the Mac App daemon)
+        // Fall back to standalone `tailscale` CLI from brew/PATH
+        let cli_path = if std::path::Path::new(MAC_APP_CLI).exists() {
+            MAC_APP_CLI.to_string()
+        } else {
+            TOOL_NAME.to_string()
+        };
+        Self { cli_path }
     }
 
     fn parse_status(json_str: &str) -> Result<VpnStatus, VpnError> {
@@ -73,7 +83,7 @@ impl VpnProvider for TailscaleProvider {
     }
 
     fn is_installed(&self) -> bool {
-        is_tool_installed(TOOL_NAME)
+        std::path::Path::new(&self.cli_path).exists() || is_tool_installed(TOOL_NAME)
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -93,7 +103,7 @@ impl VpnProvider for TailscaleProvider {
             args.push(&exit_node_arg);
         }
 
-        exec_command(TOOL_NAME, &args, TIMEOUT).await?;
+        exec_command(&self.cli_path, &args, TIMEOUT).await?;
         Ok(())
     }
 
@@ -101,7 +111,7 @@ impl VpnProvider for TailscaleProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
-        exec_command(TOOL_NAME, &["down"], TIMEOUT).await?;
+        exec_command(&self.cli_path, &["down"], TIMEOUT).await?;
         Ok(())
     }
 
@@ -109,7 +119,7 @@ impl VpnProvider for TailscaleProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
-        let output = exec_command(TOOL_NAME, &["status", "--json"], TIMEOUT).await?;
+        let output = exec_command(&self.cli_path, &["status", "--json"], TIMEOUT).await?;
         Self::parse_status(&output)
     }
 
@@ -131,7 +141,7 @@ impl VpnProvider for TailscaleProvider {
             args.push(&accept_routes_flag);
             let shields_up_flag = format!("--shields-up={}", shields_up);
             args.push(&shields_up_flag);
-            exec_command(TOOL_NAME, &args, TIMEOUT).await?;
+            exec_command(&self.cli_path, &args, TIMEOUT).await?;
         }
         Ok(())
     }
