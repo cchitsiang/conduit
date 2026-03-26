@@ -15,20 +15,17 @@
     installed?: boolean;
   } = $props();
 
-  let loading = $derived(
-    status ? ($isLoading[status.provider] ?? false) : false,
-  );
+  let loading = $derived($isLoading[name] ?? false);
   let connected = $derived(status?.connected ?? false);
   let dotStatus = $derived<"connected" | "disconnected" | "connecting" | "error">(
     loading ? "connecting" : connected ? "connected" : "disconnected",
   );
 
   function handleToggle(checked: boolean) {
-    if (!status) return;
     if (checked) {
-      connect(status.provider);
+      connect(name);
     } else {
-      disconnect(status.provider);
+      disconnect(name);
     }
   }
 
@@ -66,12 +63,12 @@
         {/if}
       </p>
     </div>
-  {:else if status}
+  {:else}
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2">
         <StatusDot status={dotStatus} />
         <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
-          {status.provider}
+          {name}
         </h2>
       </div>
       <Toggle
@@ -89,28 +86,30 @@
         </span>
       </div>
 
-      {#if status.ip}
+      {#if status?.ip}
         <div class="flex justify-between">
           <span>IP</span>
           <span class="font-mono text-xs">{status.ip}</span>
         </div>
       {/if}
 
-      {#if status.since}
+      {#if status?.since}
         <div class="flex justify-between">
           <span>Uptime</span>
           <span>{formatUptime(status.since)}</span>
         </div>
       {/if}
 
-      {#each Object.entries(status.extra) as [key, value]}
-        <div class="flex justify-between">
-          <span class="capitalize">{key.replace(/_/g, " ")}</span>
-          <span class="text-xs truncate max-w-[200px]">{value}</span>
-        </div>
-      {/each}
+      {#if status}
+        {#each Object.entries(status.extra) as [key, value]}
+          <div class="flex justify-between">
+            <span class="capitalize">{key.replace(/_/g, " ")}</span>
+            <span class="text-xs truncate max-w-[200px]">{value}</span>
+          </div>
+        {/each}
+      {/if}
     </div>
 
-    <ConfigPanel provider={status.provider} config={null} />
+    <ConfigPanel provider={name} config={null} />
   {/if}
 </div>
