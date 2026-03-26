@@ -41,24 +41,26 @@ fn main() {
             let poll_state = app_state.clone();
 
             tauri::async_runtime::spawn(async move {
+                // Small initial delay to let the app window set up
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
                 loop {
-                    let interval = {
-                        let state = poll_state.lock().await;
-                        let settings = state.settings.lock().await;
-                        settings.poll_interval_secs
-                    };
-
-                    tokio::time::sleep(tokio::time::Duration::from_secs(interval)).await;
-
                     let state = poll_state.lock().await;
                     let results = state.status_all().await;
                     let statuses: Vec<_> = results.into_iter().filter_map(|r| r.ok()).collect();
+                    let interval = {
+                        let settings = state.settings.lock().await;
+                        settings.poll_interval_secs
+                    };
+                    drop(state);
 
                     // Emit status update to frontend
                     let _ = app_handle.emit("vpn-status-changed", &statuses);
 
                     // Update tray menu
                     let _ = conduit_lib::tray::update_tray_menu(&app_handle, &statuses);
+
+                    tokio::time::sleep(tokio::time::Duration::from_secs(interval)).await;
                 }
             });
 
