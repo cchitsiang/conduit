@@ -15,6 +15,7 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(app_state.clone())
         .invoke_handler(tauri::generate_handler![
             conduit_lib::commands::vpn_connect,
@@ -28,6 +29,7 @@ fn main() {
             conduit_lib::commands::update_settings,
             conduit_lib::commands::list_wireguard_configs,
             conduit_lib::commands::get_wireguard_config_dir,
+            conduit_lib::commands::import_wireguard_config,
         ])
         .setup(move |app| {
             // Create system tray

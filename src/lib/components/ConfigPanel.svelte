@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ProviderConfig } from "$lib/types";
-  import { vpnGetConfig, vpnSetConfig, listWireguardConfigs, type WgConfigInfo } from "$lib/tauri";
+  import { vpnGetConfig, vpnSetConfig, listWireguardConfigs, importWireguardConfig, type WgConfigInfo } from "$lib/tauri";
+  import { open } from "@tauri-apps/plugin-dialog";
 
   let {
     provider,
@@ -142,9 +143,30 @@
           <select
             class="w-40 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-sm"
             value={localConfig.interface}
-            onchange={(e) => {
+            onchange={async (e) => {
               if (localConfig?.type === "WireGuard") {
                 const selected = (e.target as HTMLSelectElement).value;
+                if (selected === "__add_profile__") {
+                  // Reset dropdown to current value
+                  (e.target as HTMLSelectElement).value = localConfig.interface;
+                  const file = await open({
+                    title: "Select WireGuard Config",
+                    filters: [{ name: "WireGuard Config", extensions: ["conf"] }],
+                    multiple: false,
+                  });
+                  if (file) {
+                    try {
+                      const imported = await importWireguardConfig(file);
+                      wgConfigs = await listWireguardConfigs();
+                      localConfig.interface = imported.name;
+                      localConfig.config_file = imported.path;
+                      saveConfig();
+                    } catch (err) {
+                      console.error("Failed to import config:", err);
+                    }
+                  }
+                  return;
+                }
                 const cfg = wgConfigs.find((c) => c.name === selected);
                 localConfig.interface = selected;
                 localConfig.config_file = cfg?.path ?? `/etc/wireguard/${selected}.conf`;
@@ -158,6 +180,8 @@
             {#if !wgConfigs.find((c) => c.name === localConfig.interface)}
               <option value={localConfig.interface}>{localConfig.interface}</option>
             {/if}
+            <option disabled>---</option>
+            <option value="__add_profile__">Add Profile...</option>
           </select>
         </label>
         <div class="flex items-center justify-between">

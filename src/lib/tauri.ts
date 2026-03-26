@@ -59,6 +59,12 @@ export async function listWireguardConfigs(): Promise<WgConfigInfo[]> {
   return invoke("list_wireguard_configs");
 }
 
+export async function importWireguardConfig(
+  path: string,
+): Promise<WgConfigInfo> {
+  return invoke("import_wireguard_config", { path });
+}
+
 export async function onStatusChanged(
   callback: (statuses: VpnStatus[]) => void,
 ): Promise<UnlistenFn> {

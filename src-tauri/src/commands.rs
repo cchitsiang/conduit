@@ -151,6 +151,30 @@ pub async fn get_wireguard_config_dir() -> Result<String, String> {
 }
 
 #[tauri::command]
+pub async fn import_wireguard_config(path: String) -> Result<WgConfigInfo, String> {
+    let source = std::path::PathBuf::from(&path);
+    if !source.exists() {
+        return Err("File not found".to_string());
+    }
+    let file_name = source
+        .file_name()
+        .ok_or("Invalid file name")?
+        .to_string_lossy()
+        .to_string();
+    let dest_dir = WireGuardProvider::ensure_user_config_dir()?;
+    let dest = dest_dir.join(&file_name);
+    std::fs::copy(&source, &dest).map_err(|e| format!("Failed to copy config: {}", e))?;
+    let name = dest
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    Ok(WgConfigInfo {
+        name,
+        path: dest.to_string_lossy().to_string(),
+    })
+}
+
+#[tauri::command]
 pub async fn vpn_list_providers(
     state: State<'_, AppStateManaged>,
 ) -> Result<Vec<ProviderInfo>, String> {
