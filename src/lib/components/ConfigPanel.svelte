@@ -155,7 +155,7 @@
             {#each wgConfigs as cfg}
               <option value={cfg.name}>{cfg.name}</option>
             {/each}
-            {#if wgConfigs.length === 0 || !wgConfigs.find((c) => c.name === localConfig?.type === "WireGuard" && localConfig.interface)}
+            {#if !wgConfigs.find((c) => c.name === localConfig.interface)}
               <option value={localConfig.interface}>{localConfig.interface}</option>
             {/if}
           </select>
