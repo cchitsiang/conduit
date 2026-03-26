@@ -153,25 +153,43 @@ impl VpnProvider for WireGuardProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
-        let cmd = format!("wg show {}", self.interface);
-        match Self::exec_with_sudo(&cmd).await {
-            Ok(output) => Self::parse_status(&output, &self.interface),
-            Err(VpnError::CliError(_)) => {
-                // Interface not active
+        // Use ifconfig (no sudo) to check if the interface is up.
+        // This avoids triggering the macOS admin password prompt on every poll.
+        let mut extra = HashMap::new();
+        extra.insert("interface".to_string(), self.interface.clone());
+
+        match exec_command("ifconfig", &[&self.interface], TIMEOUT).await {
+            Ok(output) => {
+                let connected = output.contains("status: active")
+                    || (output.contains("UP") && output.contains("RUNNING"));
+
+                // Try to extract the IP address from ifconfig output
+                let ip = output
+                    .lines()
+                    .find(|line| line.trim().starts_with("inet "))
+                    .and_then(|line| line.split_whitespace().nth(1))
+                    .map(String::from);
+
+                Ok(VpnStatus {
+                    provider: "WireGuard".to_string(),
+                    connected,
+                    ip,
+                    since: None,
+                    latency_ms: None,
+                    extra,
+                })
+            }
+            Err(_) => {
+                // Interface doesn't exist — not connected
                 Ok(VpnStatus {
                     provider: "WireGuard".to_string(),
                     connected: false,
                     ip: None,
                     since: None,
                     latency_ms: None,
-                    extra: {
-                        let mut m = HashMap::new();
-                        m.insert("interface".to_string(), self.interface.clone());
-                        m
-                    },
+                    extra,
                 })
             }
-            Err(e) => Err(e),
         }
     }
 
