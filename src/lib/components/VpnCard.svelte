@@ -56,6 +56,15 @@
         {name}
       </p>
       <p class="text-sm text-gray-400 mt-1">Not detected</p>
+      <p class="text-xs text-gray-500 mt-3">
+        {#if name === "Tailscale"}
+          Install via: <code class="bg-gray-700 px-1 rounded">brew install tailscale</code>
+        {:else if name === "WARP"}
+          Install <a href="https://1.1.1.1/" class="text-blue-400 underline" target="_blank">Cloudflare WARP</a> from 1.1.1.1
+        {:else if name === "WireGuard"}
+          Install via: <code class="bg-gray-700 px-1 rounded">brew install wireguard-tools</code>
+        {/if}
+      </p>
     </div>
   {:else if status}
     <div class="flex items-center justify-between mb-3">

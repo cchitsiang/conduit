@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::any::Any;
 use std::collections::HashMap;
 
 use crate::provider::{
@@ -73,6 +74,10 @@ impl VpnProvider for TailscaleProvider {
 
     fn is_installed(&self) -> bool {
         is_tool_installed(TOOL_NAME)
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     async fn connect(&self, opts: ConnectOptions) -> Result<(), VpnError> {

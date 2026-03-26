@@ -50,6 +50,15 @@ export async function updateSettings(settings: AppSettings): Promise<void> {
   return invoke("update_settings", { settings });
 }
 
+export interface WgConfigInfo {
+  name: string;
+  path: string;
+}
+
+export async function listWireguardConfigs(): Promise<WgConfigInfo[]> {
+  return invoke("list_wireguard_configs");
+}
+
 export async function onStatusChanged(
   callback: (statuses: VpnStatus[]) => void,
 ): Promise<UnlistenFn> {

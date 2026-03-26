@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ProviderConfig } from "$lib/types";
-  import { vpnGetConfig, vpnSetConfig } from "$lib/tauri";
+  import { vpnGetConfig, vpnSetConfig, listWireguardConfigs, type WgConfigInfo } from "$lib/tauri";
 
   let {
     provider,
@@ -12,6 +12,8 @@
 
   let expanded = $state(false);
   let localConfig = $state<ProviderConfig | null>(null);
+  let wgConfigs = $state<WgConfigInfo[]>([]);
+
   $effect(() => {
     localConfig = config;
   });
@@ -19,6 +21,9 @@
   async function loadConfig() {
     try {
       localConfig = await vpnGetConfig(provider);
+      if (provider === "WireGuard") {
+        wgConfigs = await listWireguardConfigs();
+      }
     } catch (e) {
       console.error("Failed to load config:", e);
     }
@@ -133,13 +138,27 @@
         </label>
       {:else if localConfig.type === "WireGuard"}
         <label class="flex items-center justify-between">
-          <span class="text-gray-600 dark:text-gray-300">Interface</span>
-          <input
-            type="text"
+          <span class="text-gray-600 dark:text-gray-300">Profile</span>
+          <select
             class="w-40 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-sm"
             value={localConfig.interface}
-            disabled
-          />
+            onchange={(e) => {
+              if (localConfig?.type === "WireGuard") {
+                const selected = (e.target as HTMLSelectElement).value;
+                const cfg = wgConfigs.find((c) => c.name === selected);
+                localConfig.interface = selected;
+                localConfig.config_file = cfg?.path ?? `/etc/wireguard/${selected}.conf`;
+                saveConfig();
+              }
+            }}
+          >
+            {#each wgConfigs as cfg}
+              <option value={cfg.name}>{cfg.name}</option>
+            {/each}
+            {#if wgConfigs.length === 0 || !wgConfigs.find((c) => c.name === localConfig?.type === "WireGuard" && localConfig.interface)}
+              <option value={localConfig.interface}>{localConfig.interface}</option>
+            {/if}
+          </select>
         </label>
         <div class="flex items-center justify-between">
           <span class="text-gray-600 dark:text-gray-300">Config File</span>

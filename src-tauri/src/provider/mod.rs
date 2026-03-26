@@ -5,6 +5,7 @@ pub mod wireguard;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -92,6 +93,7 @@ impl From<ExecError> for VpnError {
 pub trait VpnProvider: Send + Sync {
     fn name(&self) -> &str;
     fn is_installed(&self) -> bool;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
     async fn connect(&self, opts: ConnectOptions) -> Result<(), VpnError>;
     async fn disconnect(&self) -> Result<(), VpnError>;
     async fn status(&self) -> Result<VpnStatus, VpnError>;

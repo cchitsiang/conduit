@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
 
+use crate::provider::wireguard::WireGuardProvider;
 use crate::provider::{ConnectOptions, ProviderConfig, ProviderInfo, VpnStatus};
 use crate::settings::AppSettings;
 use crate::state::AppState;
@@ -101,8 +102,40 @@ pub async fn vpn_set_config(
         .await
         .ok_or_else(|| format!("Provider '{}' not found", provider))?;
 
-    let p = provider_arc.lock().await;
+    let mut p = provider_arc.lock().await;
+
+    // For WireGuard, update the active interface before calling set_config
+    if let ProviderConfig::WireGuard { ref interface, .. } = config {
+        if let Some(wg) = p.as_any_mut().downcast_mut::<WireGuardProvider>() {
+            wg.interface = interface.clone();
+        }
+    }
+
     p.set_config(config).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_wireguard_configs() -> Result<Vec<WgConfigInfo>, String> {
+    let configs = WireGuardProvider::list_config_files();
+    Ok(configs
+        .into_iter()
+        .map(|path| {
+            let name = path
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            WgConfigInfo {
+                name,
+                path: path.to_string_lossy().to_string(),
+            }
+        })
+        .collect())
+}
+
+#[derive(serde::Serialize)]
+pub struct WgConfigInfo {
+    pub name: String,
+    pub path: String,
 }
 
 #[tauri::command]

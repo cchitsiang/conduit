@@ -26,6 +26,7 @@ fn main() {
             conduit_lib::commands::vpn_list_providers,
             conduit_lib::commands::get_settings,
             conduit_lib::commands::update_settings,
+            conduit_lib::commands::list_wireguard_configs,
         ])
         .setup(move |app| {
             // Create system tray

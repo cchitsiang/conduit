@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::any::Any;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -18,7 +19,7 @@ const CONFIG_DIRS: &[&str] = &[
 ];
 
 pub struct WireGuardProvider {
-    interface: String,
+    pub interface: String,
 }
 
 impl WireGuardProvider {
@@ -131,6 +132,10 @@ impl VpnProvider for WireGuardProvider {
         is_tool_installed(TOOL_NAME)
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     async fn connect(&self, _opts: ConnectOptions) -> Result<(), VpnError> {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
@@ -211,6 +216,8 @@ impl VpnProvider for WireGuardProvider {
     }
 
     async fn set_config(&self, _config: ProviderConfig) -> Result<(), VpnError> {
+        // Interface switching is handled by the caller mutating self.interface
+        // before calling connect. See commands::vpn_set_config for WireGuard.
         Ok(())
     }
 }
