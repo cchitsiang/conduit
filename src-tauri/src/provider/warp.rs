@@ -18,7 +18,6 @@ impl WarpProvider {
     }
 
     fn parse_status(output: &str) -> Result<VpnStatus, VpnError> {
-        let mut connected = false;
         let mut extra = HashMap::new();
 
         let status_line = output
@@ -30,7 +29,7 @@ impl WarpProvider {
             .trim_start_matches("Status update:")
             .trim();
 
-        connected = status_value == "Connected";
+        let connected = status_value == "Connected";
 
         for line in output.lines() {
             if let Some(mode) = line.strip_prefix("Mode:") {
