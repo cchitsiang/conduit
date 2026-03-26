@@ -205,43 +205,49 @@ impl VpnProvider for WireGuardProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
-        // Use ifconfig (no sudo) to check if the interface is up.
-        // This avoids triggering the macOS admin password prompt on every poll.
         let mut extra = BTreeMap::new();
         extra.insert("interface".to_string(), self.interface.clone());
 
-        match exec_command("ifconfig", &[&self.interface], TIMEOUT).await {
-            Ok(output) => {
-                let connected = output.contains("status: active")
-                    || (output.contains("UP") && output.contains("RUNNING"));
+        // On macOS, wg-quick creates /var/run/wireguard/<name>.name
+        // containing the actual utun interface name. No sudo needed to check.
+        let name_file = PathBuf::from(format!("/var/run/wireguard/{}.name", self.interface));
 
-                // Try to extract the IP address from ifconfig output
-                let ip = output
-                    .lines()
-                    .find(|line| line.trim().starts_with("inet "))
-                    .and_then(|line| line.split_whitespace().nth(1))
-                    .map(String::from);
+        if name_file.exists() {
+            // Read the actual utun interface name and get its IP via ifconfig
+            let utun = std::fs::read_to_string(&name_file)
+                .unwrap_or_default()
+                .trim()
+                .to_string();
 
-                Ok(VpnStatus {
-                    provider: "WireGuard".to_string(),
-                    connected,
-                    ip,
-                    since: None,
-                    latency_ms: None,
-                    extra,
-                })
+            let mut ip = None;
+            if !utun.is_empty() {
+                extra.insert("tunnel".to_string(), utun.clone());
+                if let Ok(output) = exec_command("ifconfig", &[&utun], TIMEOUT).await {
+                    ip = output
+                        .lines()
+                        .find(|line| line.trim().starts_with("inet "))
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .map(String::from);
+                }
             }
-            Err(_) => {
-                // Interface doesn't exist — not connected
-                Ok(VpnStatus {
-                    provider: "WireGuard".to_string(),
-                    connected: false,
-                    ip: None,
-                    since: None,
-                    latency_ms: None,
-                    extra,
-                })
-            }
+
+            Ok(VpnStatus {
+                provider: "WireGuard".to_string(),
+                connected: true,
+                ip,
+                since: None,
+                latency_ms: None,
+                extra,
+            })
+        } else {
+            Ok(VpnStatus {
+                provider: "WireGuard".to_string(),
+                connected: false,
+                ip: None,
+                since: None,
+                latency_ms: None,
+                extra,
+            })
         }
     }
 
