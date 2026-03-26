@@ -139,6 +139,12 @@ pub struct WgConfigInfo {
 }
 
 #[tauri::command]
+pub async fn get_wireguard_config_dir() -> Result<String, String> {
+    let dir = WireGuardProvider::ensure_user_config_dir()?;
+    Ok(dir.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub async fn vpn_list_providers(
     state: State<'_, AppStateManaged>,
 ) -> Result<Vec<ProviderInfo>, String> {

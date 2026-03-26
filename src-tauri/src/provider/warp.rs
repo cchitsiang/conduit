@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::provider::{
     ConnectOptions, ProviderConfig, VpnError, VpnProvider, VpnStatus, WarpMode,
@@ -19,7 +19,7 @@ impl WarpProvider {
     }
 
     fn parse_status(output: &str) -> Result<VpnStatus, VpnError> {
-        let mut extra = HashMap::new();
+        let mut extra = BTreeMap::new();
 
         let status_line = output
             .lines()

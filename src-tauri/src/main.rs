@@ -27,6 +27,7 @@ fn main() {
             conduit_lib::commands::get_settings,
             conduit_lib::commands::update_settings,
             conduit_lib::commands::list_wireguard_configs,
+            conduit_lib::commands::get_wireguard_config_dir,
         ])
         .setup(move |app| {
             // Create system tray

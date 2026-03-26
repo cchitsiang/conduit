@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::provider::{
     ConnectOptions, ProviderConfig, VpnError, VpnProvider, VpnStatus,
@@ -47,7 +47,7 @@ impl TailscaleProvider {
 
         let ip = ips.first().cloned();
 
-        let mut extra = HashMap::new();
+        let mut extra = BTreeMap::new();
 
         if let Some(hostname) = v["Self"]["HostName"].as_str() {
             extra.insert("hostname".to_string(), hostname.to_string());

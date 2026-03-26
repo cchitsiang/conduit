@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::provider::{
@@ -12,11 +12,18 @@ use crate::util::exec::exec_command;
 const TOOL_NAME: &str = "wg";
 const TIMEOUT: u64 = 10;
 
-const CONFIG_DIRS: &[&str] = &[
+const SYSTEM_CONFIG_DIRS: &[&str] = &[
     "/etc/wireguard",
     "/opt/homebrew/etc/wireguard",
     "/usr/local/etc/wireguard",
 ];
+
+fn user_config_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_default()))
+        .join(".conduit")
+        .join("wireguard")
+}
 
 pub struct WireGuardProvider {
     pub interface: String,
@@ -36,7 +43,7 @@ impl WireGuardProvider {
     }
 
     fn parse_status(output: &str, interface: &str) -> Result<VpnStatus, VpnError> {
-        let mut extra = HashMap::new();
+        let mut extra = BTreeMap::new();
         extra.insert("interface".to_string(), interface.to_string());
 
         if output.trim().is_empty() {
@@ -87,7 +94,22 @@ impl WireGuardProvider {
 
     pub fn list_config_files() -> Vec<PathBuf> {
         let mut configs = Vec::new();
-        for dir in CONFIG_DIRS {
+
+        // User config dir first (no sudo needed): ~/.config/conduit/wireguard/
+        let user_dir = user_config_dir();
+        if user_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&user_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.extension().map(|e| e == "conf").unwrap_or(false) {
+                        configs.push(p);
+                    }
+                }
+            }
+        }
+
+        // Then system dirs (may need sudo to read)
+        for dir in SYSTEM_CONFIG_DIRS {
             let path = PathBuf::from(dir);
             if path.is_dir() {
                 if let Ok(entries) = std::fs::read_dir(&path) {
@@ -100,7 +122,15 @@ impl WireGuardProvider {
                 }
             }
         }
+
         configs
+    }
+
+    /// Returns the user-writable config directory, creating it if needed
+    pub fn ensure_user_config_dir() -> Result<PathBuf, String> {
+        let dir = user_config_dir();
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        Ok(dir)
     }
 
     async fn exec_with_sudo(command: &str) -> Result<String, VpnError> {
@@ -160,7 +190,7 @@ impl VpnProvider for WireGuardProvider {
         }
         // Use ifconfig (no sudo) to check if the interface is up.
         // This avoids triggering the macOS admin password prompt on every poll.
-        let mut extra = HashMap::new();
+        let mut extra = BTreeMap::new();
         extra.insert("interface".to_string(), self.interface.clone());
 
         match exec_command("ifconfig", &[&self.interface], TIMEOUT).await {

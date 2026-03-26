@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::util::exec::ExecError;
@@ -18,7 +18,7 @@ pub struct VpnStatus {
     pub ip: Option<String>,
     pub since: Option<DateTime<Utc>>,
     pub latency_ms: Option<u32>,
-    pub extra: HashMap<String, String>,
+    pub extra: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
