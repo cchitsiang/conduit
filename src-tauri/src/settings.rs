@@ -7,6 +7,8 @@ pub struct AppSettings {
     pub poll_interval_secs: u64,
     pub launch_at_login: bool,
     pub provider_visibility: HashMap<String, bool>,
+    #[serde(default)]
+    pub wireguard_last_interface: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -20,6 +22,7 @@ impl Default for AppSettings {
             poll_interval_secs: 3,
             launch_at_login: false,
             provider_visibility: visibility,
+            wireguard_last_interface: None,
         }
     }
 }

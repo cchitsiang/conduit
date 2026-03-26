@@ -5,17 +5,25 @@ use std::collections::BTreeMap;
 use crate::provider::{
     ConnectOptions, ProviderConfig, VpnError, VpnProvider, VpnStatus, WarpMode,
 };
-use crate::util::detect::is_tool_installed;
+use crate::util::detect::find_tool;
 use crate::util::exec::exec_command;
 
 const TOOL_NAME: &str = "warp-cli";
 const TIMEOUT: u64 = 10;
 
-pub struct WarpProvider;
+pub struct WarpProvider {
+    cli_path: Option<String>,
+}
 
 impl WarpProvider {
     pub fn new() -> Self {
-        Self
+        Self {
+            cli_path: find_tool(TOOL_NAME),
+        }
+    }
+
+    fn cli(&self) -> Result<&str, VpnError> {
+        self.cli_path.as_deref().ok_or(VpnError::NotInstalled)
     }
 
     fn parse_status(output: &str) -> Result<VpnStatus, VpnError> {
@@ -59,7 +67,7 @@ impl VpnProvider for WarpProvider {
     }
 
     fn is_installed(&self) -> bool {
-        is_tool_installed(TOOL_NAME)
+        self.cli_path.is_some()
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -67,26 +75,20 @@ impl VpnProvider for WarpProvider {
     }
 
     async fn connect(&self, _opts: ConnectOptions) -> Result<(), VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
-        exec_command(TOOL_NAME, &["connect"], TIMEOUT).await?;
+        let cli = self.cli()?;
+        exec_command(cli, &["connect"], TIMEOUT).await?;
         Ok(())
     }
 
     async fn disconnect(&self) -> Result<(), VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
-        exec_command(TOOL_NAME, &["disconnect"], TIMEOUT).await?;
+        let cli = self.cli()?;
+        exec_command(cli, &["disconnect"], TIMEOUT).await?;
         Ok(())
     }
 
     async fn status(&self) -> Result<VpnStatus, VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
-        let output = exec_command(TOOL_NAME, &["status"], TIMEOUT).await
+        let cli = self.cli()?;
+        let output = exec_command(cli, &["status"], TIMEOUT).await
             .or_else(|e| {
                 if let crate::util::exec::ExecError::NonZeroExit { stderr, .. } = &e {
                     if stderr.is_empty() {
@@ -106,19 +108,17 @@ impl VpnProvider for WarpProvider {
     }
 
     async fn set_config(&self, config: ProviderConfig) -> Result<(), VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
+        let cli = self.cli()?;
         if let ProviderConfig::Warp { mode, families_mode } = config {
             let mode_arg = match mode {
                 WarpMode::Warp => "warp",
                 WarpMode::DnsOnly => "doh",
                 WarpMode::Proxy => "proxy",
             };
-            exec_command(TOOL_NAME, &["mode", mode_arg], TIMEOUT).await?;
+            exec_command(cli, &["mode", mode_arg], TIMEOUT).await?;
 
             let families_arg = if families_mode { "malware" } else { "off" };
-            exec_command(TOOL_NAME, &["dns", "families", families_arg], TIMEOUT).await?;
+            exec_command(cli, &["dns", "families", families_arg], TIMEOUT).await?;
         }
         Ok(())
     }

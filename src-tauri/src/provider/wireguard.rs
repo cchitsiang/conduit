@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::provider::{
     ConnectOptions, ProviderConfig, VpnError, VpnProvider, VpnStatus,
 };
-use crate::util::detect::is_tool_installed;
+use crate::util::detect::find_tool;
 use crate::util::exec::exec_command;
 
 const TOOL_NAME: &str = "wg";
@@ -145,9 +145,14 @@ impl WireGuardProvider {
     }
 
     async fn exec_with_sudo(command: &str) -> Result<String, VpnError> {
+        // Prepend PATH with common tool locations so wg-quick can find wg
+        let full_command = format!(
+            "export PATH=/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH; {}",
+            command
+        );
         let script = format!(
             "do shell script \"{}\" with administrator privileges",
-            command.replace('\\', "\\\\").replace('"', "\\\"")
+            full_command.replace('\\', "\\\\").replace('"', "\\\"")
         );
         exec_command("osascript", &["-e", &script], TIMEOUT)
             .await
@@ -170,7 +175,7 @@ impl VpnProvider for WireGuardProvider {
     }
 
     fn is_installed(&self) -> bool {
-        is_tool_installed(TOOL_NAME)
+        find_tool(TOOL_NAME).is_some()
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -181,10 +186,19 @@ impl VpnProvider for WireGuardProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
+        // Already connected? Skip.
+        let name_file = std::path::PathBuf::from(format!(
+            "/var/run/wireguard/{}.name", self.interface
+        ));
+        if name_file.exists() {
+            return Ok(());
+        }
+        let wg_quick = find_tool("wg-quick")
+            .unwrap_or_else(|| "wg-quick".to_string());
         let config_path = Self::find_config_path(&self.interface)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| self.interface.clone());
-        let cmd = format!("wg-quick up {}", config_path);
+        let cmd = format!("{} up {}", wg_quick, config_path);
         Self::exec_with_sudo(&cmd).await?;
         Ok(())
     }
@@ -193,10 +207,13 @@ impl VpnProvider for WireGuardProvider {
         if !self.is_installed() {
             return Err(VpnError::NotInstalled);
         }
+        // Use full config path for disconnect — wg-quick needs it to find the conf
+        let wg_quick = find_tool("wg-quick")
+            .unwrap_or_else(|| "wg-quick".to_string());
         let config_path = Self::find_config_path(&self.interface)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| self.interface.clone());
-        let cmd = format!("wg-quick down {}", config_path);
+        let cmd = format!("{} down {}", wg_quick, config_path);
         Self::exec_with_sudo(&cmd).await?;
         Ok(())
     }

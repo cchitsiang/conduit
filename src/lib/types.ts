@@ -41,6 +41,7 @@ export interface AppSettings {
   poll_interval_secs: number;
   launch_at_login: boolean;
   provider_visibility: Record<string, boolean>;
+  wireguard_last_interface?: string | null;
 }
 
 export interface ActivityEvent {

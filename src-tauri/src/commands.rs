@@ -104,11 +104,17 @@ pub async fn vpn_set_config(
 
     let mut p = provider_arc.lock().await;
 
-    // For WireGuard, update the active interface before calling set_config
+    // For WireGuard, update the active interface and persist the choice
     if let ProviderConfig::WireGuard { ref interface, .. } = config {
         if let Some(wg) = p.as_any_mut().downcast_mut::<WireGuardProvider>() {
             wg.interface = interface.clone();
         }
+        // Save last used interface to settings
+        {
+            let mut settings = state.settings.lock().await;
+            settings.wireguard_last_interface = Some(interface.clone());
+        }
+        let _ = state.save_settings().await;
     }
 
     p.set_config(config).await.map_err(|e| e.to_string())

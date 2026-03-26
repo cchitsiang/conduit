@@ -18,10 +18,15 @@ impl AppState {
     pub fn new(settings_path: PathBuf) -> Self {
         let settings = AppSettings::load(&settings_path);
 
+        let wg_provider = match &settings.wireguard_last_interface {
+            Some(iface) => WireGuardProvider::with_interface(iface),
+            None => WireGuardProvider::new(),
+        };
+
         let providers: Vec<Arc<Mutex<Box<dyn VpnProvider>>>> = vec![
             Arc::new(Mutex::new(Box::new(TailscaleProvider::new()))),
             Arc::new(Mutex::new(Box::new(WarpProvider::new()))),
-            Arc::new(Mutex::new(Box::new(WireGuardProvider::new()))),
+            Arc::new(Mutex::new(Box::new(wg_provider))),
         ];
 
         Self {

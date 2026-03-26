@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::provider::{
     ConnectOptions, ProviderConfig, VpnError, VpnProvider, VpnStatus,
 };
-use crate::util::detect::is_tool_installed;
+use crate::util::detect::find_tool;
 use crate::util::exec::exec_command;
 
 const TOOL_NAME: &str = "tailscale";
@@ -13,7 +13,7 @@ const MAC_APP_CLI: &str = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 const TIMEOUT: u64 = 10;
 
 pub struct TailscaleProvider {
-    cli_path: String,
+    cli_path: Option<String>,
 }
 
 impl TailscaleProvider {
@@ -21,11 +21,15 @@ impl TailscaleProvider {
         // Prefer the Mac App's bundled CLI (talks to the Mac App daemon)
         // Fall back to standalone `tailscale` CLI from brew/PATH
         let cli_path = if std::path::Path::new(MAC_APP_CLI).exists() {
-            MAC_APP_CLI.to_string()
+            Some(MAC_APP_CLI.to_string())
         } else {
-            TOOL_NAME.to_string()
+            find_tool(TOOL_NAME)
         };
         Self { cli_path }
+    }
+
+    fn cli(&self) -> Result<&str, VpnError> {
+        self.cli_path.as_deref().ok_or(VpnError::NotInstalled)
     }
 
     fn parse_status(json_str: &str) -> Result<VpnStatus, VpnError> {
@@ -83,7 +87,7 @@ impl VpnProvider for TailscaleProvider {
     }
 
     fn is_installed(&self) -> bool {
-        std::path::Path::new(&self.cli_path).exists() || is_tool_installed(TOOL_NAME)
+        self.cli_path.is_some()
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -91,10 +95,7 @@ impl VpnProvider for TailscaleProvider {
     }
 
     async fn connect(&self, opts: ConnectOptions) -> Result<(), VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
-
+        let cli = self.cli()?;
         let mut args = vec!["up"];
 
         let exit_node_arg;
@@ -103,23 +104,19 @@ impl VpnProvider for TailscaleProvider {
             args.push(&exit_node_arg);
         }
 
-        exec_command(&self.cli_path, &args, TIMEOUT).await?;
+        exec_command(cli, &args, TIMEOUT).await?;
         Ok(())
     }
 
     async fn disconnect(&self) -> Result<(), VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
-        exec_command(&self.cli_path, &["down"], TIMEOUT).await?;
+        let cli = self.cli()?;
+        exec_command(cli, &["down"], TIMEOUT).await?;
         Ok(())
     }
 
     async fn status(&self) -> Result<VpnStatus, VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
-        let output = exec_command(&self.cli_path, &["status", "--json"], TIMEOUT).await?;
+        let cli = self.cli()?;
+        let output = exec_command(cli, &["status", "--json"], TIMEOUT).await?;
         Self::parse_status(&output)
     }
 
@@ -132,16 +129,14 @@ impl VpnProvider for TailscaleProvider {
     }
 
     async fn set_config(&self, config: ProviderConfig) -> Result<(), VpnError> {
-        if !self.is_installed() {
-            return Err(VpnError::NotInstalled);
-        }
+        let cli = self.cli()?;
         if let ProviderConfig::Tailscale { accept_routes, shields_up, .. } = config {
             let mut args = vec!["set"];
             let accept_routes_flag = format!("--accept-routes={}", accept_routes);
             args.push(&accept_routes_flag);
             let shields_up_flag = format!("--shields-up={}", shields_up);
             args.push(&shields_up_flag);
-            exec_command(&self.cli_path, &args, TIMEOUT).await?;
+            exec_command(cli, &args, TIMEOUT).await?;
         }
         Ok(())
     }
