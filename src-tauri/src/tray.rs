@@ -18,7 +18,7 @@ pub fn create_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .item(&quit)
         .build()?;
 
-    TrayIconBuilder::new()
+    TrayIconBuilder::with_id("main")
         .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
         .icon_as_template(true)
         .menu(&menu)

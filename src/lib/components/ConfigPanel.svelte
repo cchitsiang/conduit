@@ -113,7 +113,7 @@
         <label class="flex items-center justify-between">
           <span class="text-gray-600 dark:text-gray-300">Mode</span>
           <select
-            class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-sm"
+            class="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm"
             value={localConfig.mode}
             onchange={(e) => {
               if (localConfig?.type === "Warp") {
